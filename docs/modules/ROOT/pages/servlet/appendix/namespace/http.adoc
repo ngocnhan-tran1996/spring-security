@@ -30,7 +30,7 @@ These are fixed and cannot be replaced with alternatives.
 The attributes on the `<http>` element control some of the properties on the core filters.
 
 [[nsa-http-use-authorization-manager]]
-* **use-authorization-manager**
+* **access-decision-manager-ref**
 Use AuthorizationManager API instead of SecurityMetadataSource (defaults to true)
 
 [[nsa-http-authorization-manager-ref]]
