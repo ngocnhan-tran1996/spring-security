@@ -172,6 +172,7 @@ public final class AuthorizationAdvisorProxyFactory implements AuthorizationProx
 	 * @return the proxied instance
 	 */
 	@Override
+	@SuppressWarnings("unchecked")
 	public <T> T proxy(T target) {
 		if (target == null) {
 			return null;
@@ -440,7 +441,6 @@ public final class AuthorizationAdvisorProxyFactory implements AuthorizationProx
 			return null;
 		}
 
-		@SuppressWarnings("unchecked")
 		private <T> T proxyCast(AuthorizationProxyFactory proxyFactory, T target) {
 			return proxyFactory.proxy(target);
 		}

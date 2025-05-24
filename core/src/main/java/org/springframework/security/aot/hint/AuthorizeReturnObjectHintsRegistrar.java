@@ -79,7 +79,7 @@ public final class AuthorizeReturnObjectHintsRegistrar implements SecurityHintsR
 		Assert.notNull(proxyFactory, "proxyFactory cannot be null");
 		Assert.noNullElements(classes, "classes cannot contain null elements");
 		this.proxyFactory = proxyFactory;
-		this.classesToProxy = new ArrayList(List.of(classes));
+		this.classesToProxy = new ArrayList<>(List.of(classes));
 	}
 
 	/**
