@@ -199,7 +199,7 @@ public class Webauthn4JRelyingPartyOperations implements WebAuthnRelyingPartyOpe
 	}
 
 	private static List<PublicKeyCredentialDescriptor> credentialDescriptors(List<CredentialRecord> credentialRecords) {
-		List result = new ArrayList();
+		List<PublicKeyCredentialDescriptor> result = new ArrayList<>();
 		for (CredentialRecord credentialRecord : credentialRecords) {
 			Bytes id = Bytes.fromBase64(credentialRecord.getCredentialId().toBase64UrlString());
 			PublicKeyCredentialDescriptor credentialDescriptor = PublicKeyCredentialDescriptor.builder()
@@ -299,7 +299,7 @@ public class Webauthn4JRelyingPartyOperations implements WebAuthnRelyingPartyOpe
 
 	private List<com.webauthn4j.data.PublicKeyCredentialParameters> convertCredentialParamsToWebauthn4j(
 			List<PublicKeyCredentialParameters> parameters) {
-		return parameters.stream().map(this::convertParamToWebauthn4j).collect(Collectors.toUnmodifiableList());
+		return parameters.stream().map(this::convertParamToWebauthn4j).toList();
 	}
 
 	private com.webauthn4j.data.PublicKeyCredentialParameters convertParamToWebauthn4j(
@@ -372,9 +372,6 @@ public class Webauthn4JRelyingPartyOperations implements WebAuthnRelyingPartyOpe
 
 		Authenticator authenticator = new AuthenticatorImpl(data, attestationObject.getAttestationStatement(),
 				credentialRecord.getSignatureCount());
-		if (authenticator == null) {
-			throw new IllegalStateException("No authenticator found");
-		}
 		Set<Origin> origins = toOrigins();
 		Challenge challenge = new DefaultChallenge(requestOptions.getChallenge().getBytes());
 		// FIXME: should populate this
