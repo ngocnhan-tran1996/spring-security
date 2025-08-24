@@ -167,7 +167,8 @@ public abstract class SecurityExpressionRoot implements SecurityExpressionOperat
 	/**
 	 * Convenience method to access {@link Authentication#getPrincipal()} from
 	 * {@link #getAuthentication()}
-	 * @return
+	 * @return the <code>Principal</code> being authenticated or the authenticated
+	 * principal after authentication.
 	 */
 	public @Nullable Object getPrincipal() {
 		return getAuthentication().getPrincipal();
@@ -228,9 +229,9 @@ public abstract class SecurityExpressionRoot implements SecurityExpressionOperat
 	/**
 	 * Prefixes role with defaultRolePrefix if defaultRolePrefix is non-null and if role
 	 * does not already start with defaultRolePrefix.
-	 * @param defaultRolePrefix
-	 * @param role
-	 * @return
+	 * @param defaultRolePrefix the default prefix to add to roles.
+	 * @param role the role that should be required.
+	 * @return a {@code String} role
 	 */
 	private static String getRoleWithDefaultPrefix(@Nullable String defaultRolePrefix, String role) {
 		if (role == null) {
