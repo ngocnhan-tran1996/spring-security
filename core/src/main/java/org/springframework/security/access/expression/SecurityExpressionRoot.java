@@ -236,7 +236,7 @@ public abstract class SecurityExpressionRoot implements SecurityExpressionOperat
 		if (role == null) {
 			return role;
 		}
-		if (defaultRolePrefix == null || defaultRolePrefix.length() == 0) {
+		if (defaultRolePrefix == null || defaultRolePrefix.isEmpty()) {
 			return role;
 		}
 		if (role.startsWith(defaultRolePrefix)) {

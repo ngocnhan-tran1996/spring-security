@@ -129,7 +129,7 @@ public abstract class AbstractRememberMeServices
 			return null;
 		}
 		this.logger.debug("Remember-me cookie detected");
-		if (rememberMeCookie.length() == 0) {
+		if (rememberMeCookie.isEmpty()) {
 			this.logger.debug("Cookie was empty");
 			cancelCookie(request, response);
 			return null;
@@ -382,7 +382,7 @@ public abstract class AbstractRememberMeServices
 
 	private String getCookiePath(HttpServletRequest request) {
 		String contextPath = request.getContextPath();
-		return (contextPath.length() > 0) ? contextPath : "/";
+		return contextPath.isEmpty() ? "/" : contextPath;
 	}
 
 	/**

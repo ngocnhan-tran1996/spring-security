@@ -378,7 +378,7 @@ public class DefaultSavedRequest implements SavedRequest {
 		if (matchingRequestParameterName == null) {
 			return queryString;
 		}
-		if (queryString == null || queryString.length() == 0) {
+		if (queryString == null || queryString.isEmpty()) {
 			return matchingRequestParameterName;
 		}
 		return UriComponentsBuilder.newInstance()
