@@ -31,6 +31,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.AuthorityUtils;
 import org.springframework.util.Assert;
+import org.springframework.util.StringUtils;
 import org.springframework.util.function.SingletonSupplier;
 
 /**
@@ -238,7 +239,7 @@ public abstract class SecurityExpressionRoot implements SecurityExpressionOperat
 		if (role == null) {
 			return role;
 		}
-		if (defaultRolePrefix == null || defaultRolePrefix.isEmpty()) {
+		if (!StringUtils.hasLength(defaultRolePrefix)) {
 			return role;
 		}
 		if (role.startsWith(defaultRolePrefix)) {
