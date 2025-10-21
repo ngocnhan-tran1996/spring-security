@@ -18,8 +18,11 @@ package org.springframework.security.web.authentication.preauth;
 
 import java.util.Collection;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.core.GrantedAuthority;
+import org.springframework.util.Assert;
 
 /**
  * {@link org.springframework.security.core.Authentication} implementation for
@@ -34,7 +37,7 @@ public class PreAuthenticatedAuthenticationToken extends AbstractAuthenticationT
 
 	private final Object principal;
 
-	private final Object credentials;
+	private final @Nullable Object credentials;
 
 	/**
 	 * Constructor used for an authentication request. The
@@ -43,8 +46,8 @@ public class PreAuthenticatedAuthenticationToken extends AbstractAuthenticationT
 	 * @param aPrincipal The pre-authenticated principal
 	 * @param aCredentials The pre-authenticated credentials
 	 */
-	public PreAuthenticatedAuthenticationToken(Object aPrincipal, Object aCredentials) {
-		super(null);
+	public PreAuthenticatedAuthenticationToken(Object aPrincipal, @Nullable Object aCredentials) {
+		super((Collection<? extends GrantedAuthority>) null);
 		this.principal = aPrincipal;
 		this.credentials = aCredentials;
 	}
@@ -56,7 +59,7 @@ public class PreAuthenticatedAuthenticationToken extends AbstractAuthenticationT
 	 * @param aPrincipal The authenticated principal
 	 * @param anAuthorities The granted authorities
 	 */
-	public PreAuthenticatedAuthenticationToken(Object aPrincipal, Object aCredentials,
+	public PreAuthenticatedAuthenticationToken(Object aPrincipal, @Nullable Object aCredentials,
 			Collection<? extends GrantedAuthority> anAuthorities) {
 		super(anAuthorities);
 		this.principal = aPrincipal;
@@ -64,11 +67,17 @@ public class PreAuthenticatedAuthenticationToken extends AbstractAuthenticationT
 		setAuthenticated(true);
 	}
 
+	protected PreAuthenticatedAuthenticationToken(Builder<?> builder) {
+		super(builder);
+		this.principal = builder.principal;
+		this.credentials = builder.credentials;
+	}
+
 	/**
 	 * Get the credentials
 	 */
 	@Override
-	public Object getCredentials() {
+	public @Nullable Object getCredentials() {
 		return this.credentials;
 	}
 
@@ -78,6 +87,48 @@ public class PreAuthenticatedAuthenticationToken extends AbstractAuthenticationT
 	@Override
 	public Object getPrincipal() {
 		return this.principal;
+	}
+
+	@Override
+	public Builder<?> toBuilder() {
+		return new Builder<>(this);
+	}
+
+	/**
+	 * A builder of {@link PreAuthenticatedAuthenticationToken} instances
+	 *
+	 * @since 7.0
+	 */
+	public static class Builder<B extends Builder<B>> extends AbstractAuthenticationBuilder<B> {
+
+		private Object principal;
+
+		private @Nullable Object credentials;
+
+		protected Builder(PreAuthenticatedAuthenticationToken token) {
+			super(token);
+			this.principal = token.principal;
+			this.credentials = token.credentials;
+		}
+
+		@Override
+		public B principal(@Nullable Object principal) {
+			Assert.notNull(principal, "principal cannot be null");
+			this.principal = principal;
+			return (B) this;
+		}
+
+		@Override
+		public B credentials(@Nullable Object credentials) {
+			this.credentials = credentials;
+			return (B) this;
+		}
+
+		@Override
+		public PreAuthenticatedAuthenticationToken build() {
+			return new PreAuthenticatedAuthenticationToken(this);
+		}
+
 	}
 
 }

@@ -30,7 +30,6 @@ import org.springframework.security.authentication.ott.OneTimeTokenService;
 import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
 import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.util.Assert;
-import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 /**
@@ -68,17 +67,12 @@ public final class GenerateOneTimeTokenFilter extends OncePerRequestFilter {
 			filterChain.doFilter(request, response);
 			return;
 		}
-		String username = request.getParameter("username");
-		if (!StringUtils.hasText(username)) {
-			filterChain.doFilter(request, response);
-			return;
-		}
 		GenerateOneTimeTokenRequest generateRequest = this.requestResolver.resolve(request);
-		OneTimeToken ott = this.tokenService.generate(generateRequest);
 		if (generateRequest == null) {
 			filterChain.doFilter(request, response);
 			return;
 		}
+		OneTimeToken ott = this.tokenService.generate(generateRequest);
 		this.tokenGenerationSuccessHandler.handle(request, response, ott);
 	}
 

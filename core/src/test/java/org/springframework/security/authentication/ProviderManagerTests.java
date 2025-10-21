@@ -18,13 +18,16 @@ package org.springframework.security.authentication;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 
 import org.springframework.context.MessageSource;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.core.GrantedAuthority;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
@@ -47,7 +50,7 @@ public class ProviderManagerTests {
 
 	@Test
 	void authenticationFailsWithUnsupportedToken() {
-		Authentication token = new AbstractAuthenticationToken(null) {
+		Authentication token = new AbstractAuthenticationToken((Collection<? extends GrantedAuthority>) null) {
 			@Override
 			public Object getCredentials() {
 				return "";
@@ -78,24 +81,24 @@ public class ProviderManagerTests {
 
 	@Test
 	void authenticationSucceedsWithSupportedTokenAndReturnsExpectedObject() {
-		Authentication a = mock(Authentication.class);
+		Authentication a = new TestingAuthenticationToken("user", "pass", "FACTOR");
 		ProviderManager mgr = new ProviderManager(createProviderWhichReturns(a));
 		AuthenticationEventPublisher publisher = mock(AuthenticationEventPublisher.class);
 		mgr.setAuthenticationEventPublisher(publisher);
 		Authentication result = mgr.authenticate(a);
-		assertThat(result).isEqualTo(a);
+		assertThat(result.getPrincipal()).isEqualTo(a.getPrincipal());
 		verify(publisher).publishAuthenticationSuccess(result);
 	}
 
 	@Test
 	void authenticationSucceedsWhenFirstProviderReturnsNullButSecondAuthenticates() {
-		Authentication a = mock(Authentication.class);
+		Authentication a = new TestingAuthenticationToken("user", "pass", "FACTOR");
 		ProviderManager mgr = new ProviderManager(
 				Arrays.asList(createProviderWhichReturns(null), createProviderWhichReturns(a)));
 		AuthenticationEventPublisher publisher = mock(AuthenticationEventPublisher.class);
 		mgr.setAuthenticationEventPublisher(publisher);
 		Authentication result = mgr.authenticate(a);
-		assertThat(result).isSameAs(a);
+		assertThat(result.getPrincipal()).isEqualTo(a.getPrincipal());
 		verify(publisher).publishAuthenticationSuccess(result);
 	}
 
@@ -160,13 +163,28 @@ public class ProviderManagerTests {
 		assertThat(result.getDetails()).isSameAs(details);
 	}
 
+	// gh-18027
+	@Test
+	void authenticationIsSameWhenDetailsSetAndAuthenticationToBuilderIsDefault() {
+		Authentication customAuthentication = new DefaultToBuilderAuthentication();
+		AuthenticationProvider provider = mock(AuthenticationProvider.class);
+		given(provider.supports(any())).willReturn(true);
+		given(provider.authenticate(any())).willReturn(customAuthentication);
+		TestingAuthenticationToken request = createAuthenticationToken();
+		request.setDetails(new Object());
+		ProviderManager authMgr = new ProviderManager(provider);
+		Authentication result = authMgr.authenticate(request);
+		assertThat(result).isSameAs(customAuthentication);
+	}
+
 	@Test
 	void authenticationExceptionIsIgnoredIfLaterProviderAuthenticates() {
-		Authentication authReq = mock(Authentication.class);
+		Authentication result = new TestingAuthenticationToken("user", "pass", "FACTOR");
 		ProviderManager mgr = new ProviderManager(
 				createProviderWhichThrows(new BadCredentialsException("", new Throwable())),
-				createProviderWhichReturns(authReq));
-		assertThat(mgr.authenticate(mock(Authentication.class))).isSameAs(authReq);
+				createProviderWhichReturns(result));
+		Authentication request = new TestingAuthenticationToken("user", "pass");
+		assertThat(mgr.authenticate(request).getPrincipal()).isEqualTo(result.getPrincipal());
 	}
 
 	@Test
@@ -349,6 +367,50 @@ public class ProviderManagerTests {
 		public boolean supports(Class<?> authentication) {
 			return TestingAuthenticationToken.class.isAssignableFrom(authentication)
 					|| UsernamePasswordAuthenticationToken.class.isAssignableFrom(authentication);
+		}
+
+	}
+
+	/**
+	 * Represents a custom {@link Authentication} that does not override
+	 * {@link #toBuilder()}. We should remain passive to previous versions of Spring
+	 * Security and not change the {@link Authentication} type.
+	 */
+	private static final class DefaultToBuilderAuthentication implements Authentication {
+
+		@Override
+		public Collection<? extends GrantedAuthority> getAuthorities() {
+			return List.of();
+		}
+
+		@Override
+		public @Nullable Object getCredentials() {
+			return null;
+		}
+
+		@Override
+		public @Nullable Object getDetails() {
+			return null;
+		}
+
+		@Override
+		public @Nullable Object getPrincipal() {
+			return null;
+		}
+
+		@Override
+		public boolean isAuthenticated() {
+			return false;
+		}
+
+		@Override
+		public void setAuthenticated(boolean isAuthenticated) throws IllegalArgumentException {
+
+		}
+
+		@Override
+		public String getName() {
+			return "";
 		}
 
 	}

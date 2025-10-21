@@ -21,6 +21,7 @@ import java.net.URL;
 import java.util.regex.Pattern;
 
 import jakarta.servlet.http.HttpServletRequest;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.security.cas.authentication.ServiceAuthenticationDetails;
 import org.springframework.security.web.authentication.WebAuthenticationDetails;
@@ -50,8 +51,8 @@ final class DefaultServiceAuthenticationDetails extends WebAuthenticationDetails
 	 * string from containing the artifact name and value. This can be created using
 	 * {@link #createArtifactPattern(String)}.
 	 */
-	DefaultServiceAuthenticationDetails(String casService, HttpServletRequest request, Pattern artifactPattern)
-			throws MalformedURLException {
+	DefaultServiceAuthenticationDetails(@Nullable String casService, HttpServletRequest request,
+			Pattern artifactPattern) throws MalformedURLException {
 		super(request);
 		URL casServiceUrl = new URL(casService);
 		int port = getServicePort(casServiceUrl);
@@ -108,7 +109,7 @@ final class DefaultServiceAuthenticationDetails extends WebAuthenticationDetails
 	 * @return the query String minus the artifactParameterName and the corresponding
 	 * value.
 	 */
-	private String getQueryString(final HttpServletRequest request, final Pattern artifactPattern) {
+	private @Nullable String getQueryString(final HttpServletRequest request, final Pattern artifactPattern) {
 		final String query = request.getQueryString();
 		String result = (query != null) ? artifactPattern.matcher(query).replaceFirst("") : "";
 		if (result.isEmpty()) {

@@ -33,7 +33,9 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractAuthenticationFilterConfigurer;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.annotation.web.configurers.CsrfConfigurer;
+import org.springframework.security.config.annotation.web.configurers.ExceptionHandlingConfigurer;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.authority.FactorGrantedAuthority;
 import org.springframework.security.saml2.provider.service.authentication.AbstractSaml2AuthenticationRequest;
 import org.springframework.security.saml2.provider.service.authentication.OpenSaml5AuthenticationProvider;
 import org.springframework.security.saml2.provider.service.registration.RelyingPartyRegistration;
@@ -48,7 +50,6 @@ import org.springframework.security.saml2.provider.service.web.authentication.Op
 import org.springframework.security.saml2.provider.service.web.authentication.Saml2AuthenticationRequestResolver;
 import org.springframework.security.saml2.provider.service.web.authentication.Saml2WebSsoAuthenticationFilter;
 import org.springframework.security.web.AuthenticationEntryPoint;
-import org.springframework.security.web.PortResolver;
 import org.springframework.security.web.authentication.AuthenticationConverter;
 import org.springframework.security.web.authentication.DelegatingAuthenticationEntryPoint;
 import org.springframework.security.web.authentication.LoginUrlAuthenticationEntryPoint;
@@ -272,7 +273,7 @@ public final class Saml2LoginConfigurer<B extends HttpSecurityBuilder<B>>
 	 * </ul>
 	 */
 	@Override
-	public void init(B http) throws Exception {
+	public void init(B http) {
 		registerDefaultCsrfOverride(http);
 		relyingPartyRegistrationRepository(http);
 		this.saml2WebSsoAuthenticationFilter = new Saml2WebSsoAuthenticationFilter(getAuthenticationConverter(http));
@@ -315,7 +316,7 @@ public final class Saml2LoginConfigurer<B extends HttpSecurityBuilder<B>>
 	 * AuthNRequest redirects
 	 */
 	@Override
-	public void configure(B http) throws Exception {
+	public void configure(B http) {
 		Saml2WebSsoAuthenticationRequestFilter filter = getAuthenticationRequestFilter(http);
 		filter.setAuthenticationRequestRepository(getAuthenticationRequestRepository(http));
 		http.addFilter(postProcess(filter));
@@ -340,16 +341,22 @@ public final class Saml2LoginConfigurer<B extends HttpSecurityBuilder<B>>
 				new OrRequestMatcher(loginPageMatcher, faviconMatcher), defaultEntryPointMatcher);
 		RequestMatcher notXRequestedWith = new NegatedRequestMatcher(
 				new RequestHeaderRequestMatcher("X-Requested-With", "XMLHttpRequest"));
-		LinkedHashMap<RequestMatcher, AuthenticationEntryPoint> entryPoints = new LinkedHashMap<>();
 		LoginUrlAuthenticationEntryPoint loginUrlEntryPoint = new LoginUrlAuthenticationEntryPoint(providerLoginPage);
-		PortResolver portResolver = getBeanOrNull(http, PortResolver.class);
-		if (portResolver != null) {
-			loginUrlEntryPoint.setPortResolver(portResolver);
+		RequestMatcher loginUrlMatcher = new AndRequestMatcher(notXRequestedWith,
+				new NegatedRequestMatcher(defaultLoginPageMatcher));
+		// @formatter:off
+		AuthenticationEntryPoint loginEntryPoint = DelegatingAuthenticationEntryPoint.builder()
+				.addEntryPointFor(loginUrlEntryPoint, loginUrlMatcher)
+				.defaultEntryPoint(getAuthenticationEntryPoint())
+				.build();
+		// @formatter:on
+		ExceptionHandlingConfigurer<B> exceptions = http.getConfigurer(ExceptionHandlingConfigurer.class);
+		if (exceptions != null) {
+			RequestMatcher requestMatcher = getAuthenticationEntryPointMatcher(http);
+			exceptions.defaultDeniedHandlerForMissingAuthority(
+					(ep) -> ep.addEntryPointFor(loginEntryPoint, requestMatcher),
+					FactorGrantedAuthority.SAML_RESPONSE_AUTHORITY);
 		}
-		entryPoints.put(new AndRequestMatcher(notXRequestedWith, new NegatedRequestMatcher(defaultLoginPageMatcher)),
-				loginUrlEntryPoint);
-		DelegatingAuthenticationEntryPoint loginEntryPoint = new DelegatingAuthenticationEntryPoint(entryPoints);
-		loginEntryPoint.setDefaultEntryPoint(this.getAuthenticationEntryPoint());
 		return loginEntryPoint;
 	}
 

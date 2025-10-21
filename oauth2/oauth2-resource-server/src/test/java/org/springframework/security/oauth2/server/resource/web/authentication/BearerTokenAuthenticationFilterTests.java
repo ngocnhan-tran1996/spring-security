@@ -18,7 +18,9 @@ package org.springframework.security.oauth2.server.resource.web.authentication;
 
 import java.io.IOException;
 import java.util.Collections;
+import java.util.Set;
 
+import jakarta.servlet.Filter;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.junit.jupiter.api.BeforeEach;
@@ -36,9 +38,15 @@ import org.springframework.security.authentication.AuthenticationDetailsSource;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationManagerResolver;
 import org.springframework.security.authentication.AuthenticationServiceException;
+import org.springframework.security.authentication.NonBuildableAuthenticationToken;
+import org.springframework.security.authentication.SecurityAssertions;
 import org.springframework.security.authentication.TestingAuthenticationToken;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.AuthorityUtils;
 import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.context.SecurityContextHolderStrategy;
 import org.springframework.security.core.context.SecurityContextImpl;
 import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
@@ -146,6 +154,8 @@ public class BearerTokenAuthenticationFilterTests {
 				new BearerTokenAuthenticationFilter(this.authenticationManagerResolver));
 		given(this.bearerTokenResolver.resolve(this.request)).willReturn("token");
 		given(this.authenticationManagerResolver.resolve(any())).willReturn(this.authenticationManager);
+		TestingAuthenticationToken expectedAuthentication = new TestingAuthenticationToken("test", "password");
+		given(this.authenticationManager.authenticate(any())).willReturn(expectedAuthentication);
 		filter.doFilter(this.request, this.response, this.filterChain);
 		ArgumentCaptor<BearerTokenAuthenticationToken> captor = ArgumentCaptor
 			.forClass(BearerTokenAuthenticationToken.class);
@@ -240,6 +250,7 @@ public class BearerTokenAuthenticationFilterTests {
 				new BearerTokenAuthenticationFilter(this.authenticationManager));
 		SecurityContextHolderStrategy strategy = mock(SecurityContextHolderStrategy.class);
 		given(strategy.createEmptyContext()).willReturn(new SecurityContextImpl());
+		given(strategy.getContext()).willReturn(new SecurityContextImpl());
 		filter.setSecurityContextHolderStrategy(strategy);
 		filter.doFilter(this.request, this.response, this.filterChain);
 		verify(strategy).setContext(any());
@@ -280,6 +291,48 @@ public class BearerTokenAuthenticationFilterTests {
 				authenticationConverter);
 		assertThatExceptionOfType(IllegalArgumentException.class)
 			.isThrownBy(() -> filter.setBearerTokenResolver(this.bearerTokenResolver));
+	}
+
+	/**
+	 * This is critical to avoid adding duplicate GrantedAuthority instances with the same
+	 * authority when the issuedAt is too old and a new instance is requested.
+	 * @throws Exception
+	 */
+	@Test
+	void doFilterWhenDefaultEqualsGrantedAuthorityThenNoDuplicates() throws Exception {
+		TestingAuthenticationToken existingAuthn = new TestingAuthenticationToken("username", "password",
+				new DefaultEqualsGrantedAuthority());
+		SecurityContextHolder.setContext(new SecurityContextImpl(existingAuthn));
+		given(this.authenticationManager.authenticate(any()))
+			.willReturn(new TestingAuthenticationToken("username", "password", new DefaultEqualsGrantedAuthority()));
+		given(this.bearerTokenResolver.resolve(any())).willReturn("token");
+		BearerTokenAuthenticationFilter filter = addMocks(
+				new BearerTokenAuthenticationFilter(this.authenticationManager));
+		filter.doFilter(this.request, this.response, this.filterChain);
+		Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+		// @formatter:off
+		SecurityAssertions.assertThat(authentication).authorities()
+				.extracting(GrantedAuthority::getAuthority)
+				.containsExactly(DefaultEqualsGrantedAuthority.AUTHORITY);
+		// @formatter:on
+	}
+
+	@Test
+	void doFilterWhenNonBuildableAuthenticationSubclassThenSkipsToBuilder() throws Exception {
+		TestingAuthenticationToken existingAuthn = new TestingAuthenticationToken("username", "password", "FACTORONE");
+		SecurityContextHolder.setContext(new SecurityContextImpl(existingAuthn));
+		given(this.authenticationManager.authenticate(any()))
+			.willReturn(new NonBuildableAuthenticationToken("username", "password", "FACTORTWO"));
+		given(this.bearerTokenResolver.resolve(any())).willReturn("token");
+		BearerTokenAuthenticationFilter filter = addMocks(
+				new BearerTokenAuthenticationFilter(this.authenticationManager));
+		filter.doFilter(this.request, this.response, this.filterChain);
+		Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+		// @formatter:off
+		SecurityAssertions.assertThat(authentication).authorities()
+				.extracting(GrantedAuthority::getAuthority)
+				.containsExactly("FACTORTWO");
+		// @formatter:on
 	}
 
 	@Test
@@ -339,6 +392,23 @@ public class BearerTokenAuthenticationFilterTests {
 		// @formatter:on
 	}
 
+	@Test
+	void authenticateWhenPreviousAuthenticationThenApplies() throws Exception {
+		Authentication first = new TestingAuthenticationToken("user", "pass", "FACTOR_ONE");
+		Authentication second = new TestingAuthenticationToken("user", "pass", "FACTOR_TWO");
+		Filter filter = addMocks(new BearerTokenAuthenticationFilter(this.authenticationManager));
+		given(this.bearerTokenResolver.resolve(this.request)).willReturn("token");
+		given(this.authenticationManager.authenticate(any())).willReturn(second);
+
+		SecurityContextHolder.getContext().setAuthentication(first);
+		filter.doFilter(this.request, this.response, this.filterChain);
+		Authentication result = SecurityContextHolder.getContext().getAuthentication();
+		SecurityContextHolder.clearContext();
+
+		Set<String> authorities = AuthorityUtils.authorityListToSet(result.getAuthorities());
+		assertThat(authorities).containsExactlyInAnyOrder("FACTOR_ONE", "FACTOR_TWO");
+	}
+
 	private BearerTokenAuthenticationFilter addMocks(BearerTokenAuthenticationFilter filter) {
 		filter.setAuthenticationEntryPoint(this.authenticationEntryPoint);
 		filter.setBearerTokenResolver(this.bearerTokenResolver);
@@ -351,6 +421,17 @@ public class BearerTokenAuthenticationFilterTests {
 				new BearerTokenAuthenticationFilter(this.authenticationManager));
 		filter.doFilter(this.request, this.response, this.filterChain);
 		verifyNoMoreInteractions(this.authenticationManager);
+	}
+
+	static final class DefaultEqualsGrantedAuthority implements GrantedAuthority {
+
+		public static final String AUTHORITY = "CUSTOM_AUTHORITY";
+
+		@Override
+		public String getAuthority() {
+			return AUTHORITY;
+		}
+
 	}
 
 }

@@ -11,6 +11,7 @@ dependencies {
 	optional 'com.fasterxml.jackson.core:jackson-databind'
 	optional 'ldapsdk:ldapsdk'
 	optional "com.unboundid:unboundid-ldapsdk"
+	optional 'tools.jackson.core:jackson-databind'
 	api ('org.springframework.ldap:spring-ldap-core') {
 		exclude(group: 'commons-logging', module: 'commons-logging')
 		exclude(group: 'org.springframework', module: 'spring-beans')
@@ -19,7 +20,8 @@ dependencies {
 		exclude(group: 'org.springframework.data', module: 'spring-data-commons')
 	}
 
-	testImplementation project(':spring-security-test')
+	testImplementation project(path : ':spring-security-core', configuration : 'tests')
+	testImplementation project(":spring-security-test")
 	testImplementation 'org.slf4j:slf4j-api'
 	testImplementation "org.assertj:assertj-core"
 	testImplementation "org.junit.jupiter:junit-jupiter-api"

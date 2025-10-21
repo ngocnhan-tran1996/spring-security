@@ -19,7 +19,8 @@ package org.springframework.security.web.webauthn.jackson;
 import java.time.Duration;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import org.jspecify.annotations.Nullable;
+import tools.jackson.databind.annotation.JsonSerialize;
 
 import org.springframework.security.web.webauthn.api.PublicKeyCredentialRequestOptions;
 
@@ -33,6 +34,6 @@ import org.springframework.security.web.webauthn.api.PublicKeyCredentialRequestO
 class PublicKeyCredentialRequestOptionsMixin {
 
 	@JsonSerialize(using = DurationSerializer.class)
-	private final Duration timeout = null;
+	private final @Nullable Duration timeout = null;
 
 }

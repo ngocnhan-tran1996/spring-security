@@ -25,6 +25,7 @@ import javax.security.auth.login.LoginContext;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
@@ -86,7 +87,7 @@ import static org.springframework.security.web.servlet.util.matcher.PathPatternR
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.forwardedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrlPattern;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
@@ -174,7 +175,7 @@ public class NamespaceHttpTests {
 		// @formatter:off
 		this.mockMvc.perform(get("/"))
 				.andExpect(status().is3xxRedirection())
-				.andExpect(redirectedUrlPattern("**/entry-point"));
+				.andExpect(redirectedUrl("/entry-point"));
 		// @formatter:on
 	}
 
@@ -310,7 +311,7 @@ public class NamespaceHttpTests {
 			}
 
 			@Override
-			public AuthorizationResult authorize(Supplier<Authentication> authentication,
+			public AuthorizationResult authorize(Supplier<? extends @Nullable Authentication> authentication,
 					RequestAuthorizationContext object) {
 				HttpServletRequest request = object.getRequest();
 				FilterInvocation invocation = new FilterInvocation(request.getContextPath(), request.getServletPath(),

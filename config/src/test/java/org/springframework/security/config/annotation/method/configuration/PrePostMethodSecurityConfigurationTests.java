@@ -92,6 +92,7 @@ import org.springframework.security.access.prepost.PostFilter;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.access.prepost.PreFilter;
 import org.springframework.security.authorization.AuthorizationDecision;
+import org.springframework.security.authorization.AuthorizationDeniedException;
 import org.springframework.security.authorization.AuthorizationEventPublisher;
 import org.springframework.security.authorization.AuthorizationManager;
 import org.springframework.security.authorization.SpringAuthorizationEventPublisher;
@@ -280,6 +281,52 @@ public class PrePostMethodSecurityConfigurationTests {
 		this.methodSecurityService.preAuthorizeAdmin();
 		SecurityContextHolderStrategy strategy = this.spring.getContext().getBean(SecurityContextHolderStrategy.class);
 		verify(strategy, atLeastOnce()).getContext();
+	}
+
+	@WithMockUser(roles = { "ADMIN", "USER" })
+	@Test
+	public void hasAllAuthoritiesRoleUserRoleAdminWhenGranted() {
+		this.spring.register(MethodSecurityServiceConfig.class).autowire();
+		this.methodSecurityService.hasAllAuthoritiesRoleUserRoleAdmin();
+	}
+
+	@WithMockUser(roles = { "USER" })
+	@Test
+	public void hasAllAuthoritiesRoleUserRoleAdminWhenMissingOneThenDenied() {
+		this.spring.register(MethodSecurityServiceConfig.class).autowire();
+		assertThatExceptionOfType(AccessDeniedException.class)
+			.isThrownBy(this.methodSecurityService::hasAllAuthoritiesRoleUserRoleAdmin);
+	}
+
+	@WithMockUser(roles = { "OTHER" })
+	@Test
+	public void hasAllAuthoritiesRoleUserRoleAdminWhenAllThenDenied() {
+		this.spring.register(MethodSecurityServiceConfig.class).autowire();
+		assertThatExceptionOfType(AccessDeniedException.class)
+			.isThrownBy(this.methodSecurityService::hasAllAuthoritiesRoleUserRoleAdmin);
+	}
+
+	@WithMockUser(roles = { "ADMIN", "USER" })
+	@Test
+	public void hasAllRolesRoleUserRoleAdminWhenGranted() {
+		this.spring.register(MethodSecurityServiceConfig.class).autowire();
+		this.methodSecurityService.hasAllRolesUserAdmin();
+	}
+
+	@WithMockUser(roles = { "USER" })
+	@Test
+	public void hasAllRolesRoleUserRoleAdminWhenMissingOneThenDenied() {
+		this.spring.register(MethodSecurityServiceConfig.class).autowire();
+		assertThatExceptionOfType(AccessDeniedException.class)
+			.isThrownBy(this.methodSecurityService::hasAllRolesUserAdmin);
+	}
+
+	@WithMockUser(roles = { "OTHER" })
+	@Test
+	public void hasAllRolesRoleUserRoleAdminWhenAllThenDenied() {
+		this.spring.register(MethodSecurityServiceConfig.class).autowire();
+		assertThatExceptionOfType(AccessDeniedException.class)
+			.isThrownBy(this.methodSecurityService::hasAllRolesUserAdmin);
 	}
 
 	@WithMockUser(authorities = "PREFIX_ADMIN")
@@ -1362,6 +1409,14 @@ public class PrePostMethodSecurityConfigurationTests {
 				.with(user("rob"));
 		// @formatter:on
 		this.mvc.perform(requestWithUser).andExpect(status().isForbidden());
+	}
+
+	@Test
+	void checkCustomManagerWhenInvokedThenUsesBeanToAuthorize() {
+		this.spring.register(MethodSecurityServiceConfig.class).autowire();
+		MethodSecurityService service = this.spring.getContext().getBean(MethodSecurityService.class);
+		service.checkCustomManager(2);
+		assertThatExceptionOfType(AuthorizationDeniedException.class).isThrownBy(() -> service.checkCustomManager(1));
 	}
 
 	private static Consumer<ConfigurableWebApplicationContext> disallowBeanOverriding() {

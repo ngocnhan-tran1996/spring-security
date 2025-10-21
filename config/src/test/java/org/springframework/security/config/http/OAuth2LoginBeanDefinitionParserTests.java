@@ -30,6 +30,7 @@ import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.mock.web.MockHttpSession;
+import org.springframework.security.authentication.SecurityAssertions;
 import org.springframework.security.authentication.event.AuthenticationSuccessEvent;
 import org.springframework.security.config.test.SpringTestContext;
 import org.springframework.security.config.test.SpringTestContextExtension;
@@ -59,7 +60,9 @@ import org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationRequ
 import org.springframework.security.oauth2.core.endpoint.OAuth2ParameterNames;
 import org.springframework.security.oauth2.core.endpoint.TestOAuth2AccessTokenResponses;
 import org.springframework.security.oauth2.core.endpoint.TestOAuth2AuthorizationRequests;
+import org.springframework.security.oauth2.core.oidc.user.DefaultOidcUser;
 import org.springframework.security.oauth2.core.oidc.user.OidcUser;
+import org.springframework.security.oauth2.core.oidc.user.TestOidcUsers;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.oauth2.core.user.TestOAuth2Users;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -133,6 +136,9 @@ public class OAuth2LoginBeanDefinitionParserTests {
 	private OAuth2UserService<OAuth2UserRequest, OAuth2User> oauth2UserService;
 
 	@Autowired(required = false)
+	private OAuth2UserService<OAuth2UserRequest, OAuth2User> oidcUserService;
+
+	@Autowired(required = false)
 	private JwtDecoderFactory<ClientRegistration> jwtDecoderFactory;
 
 	@Autowired(required = false)
@@ -174,7 +180,7 @@ public class OAuth2LoginBeanDefinitionParserTests {
 		// @formatter:off
 		this.mvc.perform(get("/"))
 				.andExpect(status().is3xxRedirection())
-				.andExpect(redirectedUrl("http://localhost/oauth2/authorization/google-login"));
+				.andExpect(redirectedUrl("/oauth2/authorization/google-login"));
 		// @formatter:on
 		verify(this.requestCache).saveRequest(any(), any());
 	}
@@ -187,7 +193,7 @@ public class OAuth2LoginBeanDefinitionParserTests {
 		// @formatter:off
 		this.mvc.perform(get("/favicon.ico").accept(new MediaType("image", "*")))
 				.andExpect(status().is3xxRedirection())
-				.andExpect(redirectedUrl("http://localhost/login"));
+				.andExpect(redirectedUrl("/login"));
 		// @formatter:on
 	}
 
@@ -199,7 +205,7 @@ public class OAuth2LoginBeanDefinitionParserTests {
 		// @formatter:off
 		this.mvc.perform(get("/").header("X-Requested-With", "XMLHttpRequest"))
 				.andExpect(status().is3xxRedirection())
-				.andExpect(redirectedUrl("http://localhost/login"));
+				.andExpect(redirectedUrl("/login"));
 		// @formatter:on
 	}
 
@@ -285,6 +291,8 @@ public class OAuth2LoginBeanDefinitionParserTests {
 		given(this.accessTokenResponseClient.getTokenResponse(any())).willReturn(accessTokenResponse);
 		Jwt jwt = TestJwts.user();
 		given(this.jwtDecoderFactory.createDecoder(any())).willReturn((token) -> jwt);
+		DefaultOidcUser oidcUser = TestOidcUsers.create();
+		given(this.oidcUserService.loadUser(any())).willReturn(oidcUser);
 		MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
 		params.add("code", "code123");
 		params.add("state", authorizationRequest.getState());
@@ -322,8 +330,10 @@ public class OAuth2LoginBeanDefinitionParserTests {
 		verify(this.authenticationSuccessHandler).onAuthenticationSuccess(any(), any(), authenticationCaptor.capture());
 		Authentication authentication = authenticationCaptor.getValue();
 		assertThat(authentication.getPrincipal()).isInstanceOf(OAuth2User.class);
-		assertThat(authentication.getAuthorities()).hasSize(1);
-		assertThat(authentication.getAuthorities()).first()
+		SecurityAssertions.assertThat(authentication)
+			.roles()
+			.hasSize(1)
+			.first()
 			.isInstanceOf(SimpleGrantedAuthority.class)
 			.hasToString("ROLE_OAUTH2_USER");
 		// re-setup for OIDC test
@@ -336,6 +346,8 @@ public class OAuth2LoginBeanDefinitionParserTests {
 		given(this.accessTokenResponseClient.getTokenResponse(any())).willReturn(accessTokenResponse);
 		Jwt jwt = TestJwts.user();
 		given(this.jwtDecoderFactory.createDecoder(any())).willReturn((token) -> jwt);
+		DefaultOidcUser oidcUser = TestOidcUsers.create();
+		given(this.oidcUserService.loadUser(any())).willReturn(oidcUser);
 		given(this.userAuthoritiesMapper.mapAuthorities(any()))
 			.willReturn((Collection) AuthorityUtils.createAuthorityList("ROLE_OIDC_USER"));
 		// @formatter:off
@@ -411,7 +423,7 @@ public class OAuth2LoginBeanDefinitionParserTests {
 		// @formatter:off
 		this.mvc.perform(get("/"))
 				.andExpect(status().is3xxRedirection())
-				.andExpect(redirectedUrl("http://localhost/login"));
+				.andExpect(redirectedUrl("/login"));
 		// @formatter:on
 	}
 
@@ -421,7 +433,7 @@ public class OAuth2LoginBeanDefinitionParserTests {
 		// @formatter:off
 		this.mvc.perform(get("/"))
 				.andExpect(status().is3xxRedirection())
-				.andExpect(redirectedUrl("http://localhost/custom-login"));
+				.andExpect(redirectedUrl("/custom-login"));
 		// @formatter:on
 	}
 
@@ -433,7 +445,7 @@ public class OAuth2LoginBeanDefinitionParserTests {
 		// @formatter:off
 		this.mvc.perform(get("/"))
 				.andExpect(status().is3xxRedirection())
-				.andExpect(redirectedUrl("http://localhost/login"));
+				.andExpect(redirectedUrl("/login"));
 		// @formatter:on
 	}
 

@@ -18,6 +18,7 @@ package org.springframework.security.web.reactive.result.method.annotation;
 
 import java.lang.annotation.Annotation;
 
+import org.jspecify.annotations.Nullable;
 import org.reactivestreams.Publisher;
 import reactor.core.publisher.Mono;
 
@@ -62,7 +63,7 @@ public class AuthenticationPrincipalArgumentResolver extends HandlerMethodArgume
 
 	private boolean useAnnotationTemplate = false;
 
-	private BeanResolver beanResolver;
+	private @Nullable BeanResolver beanResolver;
 
 	public AuthenticationPrincipalArgumentResolver(ReactiveAdapterRegistry adapterRegistry) {
 		super(adapterRegistry);
@@ -82,19 +83,25 @@ public class AuthenticationPrincipalArgumentResolver extends HandlerMethodArgume
 	}
 
 	@Override
+	@SuppressWarnings("NullAway") // https://github.com/uber/NullAway/issues/1290
 	public Mono<Object> resolveArgument(MethodParameter parameter, BindingContext bindingContext,
 			ServerWebExchange exchange) {
 		ReactiveAdapter adapter = getAdapterRegistry().getAdapter(parameter.getParameterType());
 		return ReactiveSecurityContextHolder.getContext()
-			.map(SecurityContext::getAuthentication)
+			.mapNotNull(SecurityContext::getAuthentication)
 			.flatMap((authentication) -> {
 				Mono<Object> principal = Mono.justOrEmpty(resolvePrincipal(parameter, authentication.getPrincipal()));
 				return (adapter != null) ? Mono.just(adapter.fromPublisher(principal)) : principal;
 			});
 	}
 
-	private Object resolvePrincipal(MethodParameter parameter, Object principal) {
+	@SuppressWarnings("NullAway") // https://github.com/spring-projects/spring-framework/issues/35371
+	private @Nullable Object resolvePrincipal(MethodParameter parameter, @Nullable Object principal) {
 		AuthenticationPrincipal annotation = findMethodAnnotation(parameter);
+		if (annotation == null) {
+			// FIXME: Add test
+			return null;
+		}
 		String expressionToParse = annotation.expression();
 		if (StringUtils.hasLength(expressionToParse)) {
 			StandardEvaluationContext context = new StandardEvaluationContext();
@@ -113,7 +120,7 @@ public class AuthenticationPrincipalArgumentResolver extends HandlerMethodArgume
 		return principal;
 	}
 
-	private boolean isInvalidType(MethodParameter parameter, Object principal) {
+	private boolean isInvalidType(MethodParameter parameter, @Nullable Object principal) {
 		if (principal == null) {
 			return false;
 		}
@@ -150,7 +157,7 @@ public class AuthenticationPrincipalArgumentResolver extends HandlerMethodArgume
 	 * @param parameter the {@link MethodParameter} to search for an {@link Annotation}
 	 * @return the {@link Annotation} that was found or null.
 	 */
-	private AuthenticationPrincipal findMethodAnnotation(MethodParameter parameter) {
+	private @Nullable AuthenticationPrincipal findMethodAnnotation(MethodParameter parameter) {
 		if (this.useAnnotationTemplate) {
 			return this.scanner.scan(parameter.getParameter());
 		}

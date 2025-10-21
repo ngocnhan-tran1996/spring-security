@@ -1,3 +1,7 @@
+plugins {
+	id 'security-nullability'
+}
+
 apply plugin: 'io.spring.convention.spring-module'
 
 configurations {
@@ -42,6 +46,7 @@ dependencies {
 	optional 'org.springframework:spring-tx'
 	optional 'org.springframework:spring-webflux'
 	optional 'org.springframework:spring-webmvc'
+	optional 'tools.jackson.core:jackson-databind'
 	optional libs.webauthn4j.core
 
 	provided 'jakarta.servlet:jakarta.servlet-api'

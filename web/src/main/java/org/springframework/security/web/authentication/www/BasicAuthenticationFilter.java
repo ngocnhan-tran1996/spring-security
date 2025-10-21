@@ -17,12 +17,16 @@
 package org.springframework.security.web.authentication.www;
 
 import java.io.IOException;
+import java.lang.reflect.Method;
 import java.nio.charset.Charset;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.core.log.LogMessage;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
@@ -30,6 +34,7 @@ import org.springframework.security.authentication.AuthenticationDetailsSource;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.context.SecurityContextHolderStrategy;
@@ -96,7 +101,7 @@ public class BasicAuthenticationFilter extends OncePerRequestFilter {
 	private SecurityContextHolderStrategy securityContextHolderStrategy = SecurityContextHolder
 		.getContextHolderStrategy();
 
-	private AuthenticationEntryPoint authenticationEntryPoint;
+	private @Nullable AuthenticationEntryPoint authenticationEntryPoint;
 
 	private AuthenticationManager authenticationManager;
 
@@ -185,6 +190,23 @@ public class BasicAuthenticationFilter extends OncePerRequestFilter {
 			this.logger.trace(LogMessage.format("Found username '%s' in Basic Authorization header", username));
 			if (authenticationIsRequired(username)) {
 				Authentication authResult = this.authenticationManager.authenticate(authRequest);
+				Authentication current = this.securityContextHolderStrategy.getContext().getAuthentication();
+				if (current != null && current.isAuthenticated() && declaresToBuilder(authResult)) {
+					authResult = authResult.toBuilder()
+					// @formatter:off
+						.authorities((a) -> {
+							Set<String> newAuthorities = a.stream()
+								.map(GrantedAuthority::getAuthority)
+								.collect(Collectors.toUnmodifiableSet());
+							for (GrantedAuthority currentAuthority : current.getAuthorities()) {
+								if (!newAuthorities.contains(currentAuthority.getAuthority())) {
+									a.add(currentAuthority);
+								}
+							}
+						})
+						.build();
+						// @formatter:on
+				}
 				SecurityContext context = this.securityContextHolderStrategy.createEmptyContext();
 				context.setAuthentication(authResult);
 				this.securityContextHolderStrategy.setContext(context);
@@ -201,7 +223,7 @@ public class BasicAuthenticationFilter extends OncePerRequestFilter {
 			this.logger.debug("Failed to process authentication request", ex);
 			this.rememberMeServices.loginFail(request, response);
 			onUnsuccessfulAuthentication(request, response, ex);
-			if (this.ignoreFailure) {
+			if (this.ignoreFailure || this.authenticationEntryPoint == null) {
 				chain.doFilter(request, response);
 			}
 			else {
@@ -211,6 +233,15 @@ public class BasicAuthenticationFilter extends OncePerRequestFilter {
 		}
 
 		chain.doFilter(request, response);
+	}
+
+	private static boolean declaresToBuilder(Authentication authentication) {
+		for (Method method : authentication.getClass().getDeclaredMethods()) {
+			if (method.getName().equals("toBuilder") && method.getParameterTypes().length == 0) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	protected boolean authenticationIsRequired(String username) {
@@ -241,7 +272,7 @@ public class BasicAuthenticationFilter extends OncePerRequestFilter {
 			AuthenticationException failed) throws IOException {
 	}
 
-	protected AuthenticationEntryPoint getAuthenticationEntryPoint() {
+	protected @Nullable AuthenticationEntryPoint getAuthenticationEntryPoint() {
 		return this.authenticationEntryPoint;
 	}
 

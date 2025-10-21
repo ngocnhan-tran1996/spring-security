@@ -101,7 +101,7 @@ public class SwitchUserWebFilter implements WebFilter {
 
 	private final ServerAuthenticationSuccessHandler successHandler;
 
-	private final ServerAuthenticationFailureHandler failureHandler;
+	private final @Nullable ServerAuthenticationFailureHandler failureHandler;
 
 	private final ReactiveUserDetailsService userDetailsService;
 
@@ -176,11 +176,12 @@ public class SwitchUserWebFilter implements WebFilter {
 	 * @throws AuthenticationCredentialsNotFoundException If the target user can not be
 	 * found by username
 	 */
+	@SuppressWarnings("NullAway") // https://github.com/uber/NullAway/issues/1290
 	protected Mono<Authentication> switchUser(WebFilterExchange webFilterExchange) {
 		return this.switchUserMatcher.matches(webFilterExchange.getExchange())
 			.filter(ServerWebExchangeMatcher.MatchResult::isMatch)
 			.flatMap((matchResult) -> ReactiveSecurityContextHolder.getContext())
-			.map(SecurityContext::getAuthentication)
+			.mapNotNull(SecurityContext::getAuthentication)
 			.flatMap((currentAuthentication) -> {
 				String username = getUsername(webFilterExchange.getExchange());
 				return attemptSwitchUser(currentAuthentication, username);
@@ -197,11 +198,12 @@ public class SwitchUserWebFilter implements WebFilter {
 	 * <code>Authentication</code> associated with this request or the user is not
 	 * switched.
 	 */
+	@SuppressWarnings("NullAway") // https://github.com/uber/NullAway/issues/1290
 	protected Mono<Authentication> exitSwitchUser(WebFilterExchange webFilterExchange) {
 		return this.exitUserMatcher.matches(webFilterExchange.getExchange())
 			.filter(ServerWebExchangeMatcher.MatchResult::isMatch)
 			.flatMap((matchResult) -> ReactiveSecurityContextHolder.getContext()
-				.map(SecurityContext::getAuthentication)
+				.mapNotNull(SecurityContext::getAuthentication)
 				.switchIfEmpty(Mono.error(this::noCurrentUserException)))
 			.map(this::attemptExitUser);
 	}
@@ -211,12 +213,12 @@ public class SwitchUserWebFilter implements WebFilter {
 	 * @param exchange The server web exchange
 	 * @return the name of the target user.
 	 */
-	protected String getUsername(ServerWebExchange exchange) {
+	protected @Nullable String getUsername(ServerWebExchange exchange) {
 		return exchange.getRequest().getQueryParams().getFirst(SPRING_SECURITY_SWITCH_USERNAME_KEY);
 	}
 
 	@NonNull
-	private Mono<Authentication> attemptSwitchUser(Authentication currentAuthentication, String userName) {
+	private Mono<Authentication> attemptSwitchUser(Authentication currentAuthentication, @Nullable String userName) {
 		Assert.notNull(userName, "The userName can not be null.");
 		this.logger.debug(LogMessage.format("Attempting to switch to user [%s]", userName));
 		return this.userDetailsService.findByUsername(userName)
