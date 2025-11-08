@@ -90,6 +90,48 @@ public class PreAuthorizeAuthorizationManagerTests {
 	}
 
 	@Test
+	public void checkSecuredScope() throws Exception {
+		MockMethodInvocation methodInvocation = new MockMethodInvocation(new TestClass(), TestClass.class,
+				"securedScope");
+		PreAuthorizeAuthorizationManager manager = new PreAuthorizeAuthorizationManager();
+		AuthorizationResult decision = manager.authorize(TestAuthentication::authenticatedUser, methodInvocation);
+		assertThat(decision).isNotNull();
+		assertThat(decision.isGranted()).isFalse();
+
+		Supplier<Authentication> authentication = () -> new TestingAuthenticationToken("user", "password",
+				"SCOPE_read");
+		decision = manager.authorize(authentication, methodInvocation);
+		assertThat(decision).isNotNull();
+		assertThat(decision.isGranted()).isFalse();
+
+		authentication = () -> new TestingAuthenticationToken("user", "password", "SCOPE_write");
+		decision = manager.authorize(authentication, methodInvocation);
+		assertThat(decision).isNotNull();
+		assertThat(decision.isGranted()).isTrue();
+	}
+
+	@Test
+	public void checkSecuredAnyScope() throws Exception {
+		MockMethodInvocation methodInvocation = new MockMethodInvocation(new TestClass(), TestClass.class,
+				"securedAnyScope");
+		PreAuthorizeAuthorizationManager manager = new PreAuthorizeAuthorizationManager();
+		AuthorizationResult decision = manager.authorize(TestAuthentication::authenticatedUser, methodInvocation);
+		assertThat(decision).isNotNull();
+		assertThat(decision.isGranted()).isFalse();
+
+		Supplier<Authentication> authentication = () -> new TestingAuthenticationToken("user", "password",
+				"SCOPE_read");
+		decision = manager.authorize(authentication, methodInvocation);
+		assertThat(decision).isNotNull();
+		assertThat(decision.isGranted()).isTrue();
+
+		authentication = () -> new TestingAuthenticationToken("user", "password", "SCOPE_write");
+		decision = manager.authorize(authentication, methodInvocation);
+		assertThat(decision).isNotNull();
+		assertThat(decision.isGranted()).isTrue();
+	}
+
+	@Test
 	public void checkRequiresAdminWhenClassAnnotationsThenMethodAnnotationsTakePrecedence() throws Exception {
 		Supplier<Authentication> authentication = () -> new TestingAuthenticationToken("user", "password", "ROLE_USER");
 		MockMethodInvocation methodInvocation = new MockMethodInvocation(new ClassLevelAnnotations(),
@@ -178,6 +220,16 @@ public class PreAuthorizeAuthorizationManagerTests {
 
 		@Override
 		public void inheritedAnnotations() {
+
+		}
+
+		@PreAuthorize("hasScope('write')")
+		public void securedScope() {
+
+		}
+
+		@PreAuthorize("hasAnyScope('write', 'read')")
+		public void securedAnyScope() {
 
 		}
 

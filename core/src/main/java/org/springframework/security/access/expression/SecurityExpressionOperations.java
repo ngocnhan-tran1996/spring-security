@@ -82,6 +82,38 @@ public interface SecurityExpressionOperations {
 	boolean hasAnyRole(String... roles);
 
 	/**
+	 * <p>
+	 * Determines if the {@link #getAuthentication()} has a particular authority within
+	 * {@link Authentication#getAuthorities()}.
+	 * </p>
+	 * <p>
+	 * This is similar to {@link #hasAuthority(String)} except that this method implies
+	 * that the String passed in is a scope. For example, if "read" is passed in the
+	 * implementation may convert it to use "SCOPE_read" instead. The way in which the
+	 * scope is converted may depend on the implementation settings.
+	 * </p>
+	 * @param scope the authority to test (i.e. "read")
+	 * @return true if the authority is found, else false
+	 */
+	boolean hasScope(String scope);
+
+	/**
+	 * <p>
+	 * Determines if the {@link #getAuthentication()} has any of the specified authorities
+	 * within {@link Authentication#getAuthorities()}.
+	 * </p>
+	 * <p>
+	 * This is similar to {@link #hasAnyAuthority(String...)} except that this method
+	 * implies that the String passed in is a scope. For example, if "read" is passed in
+	 * the implementation may convert it to use "SCOPE_read" instead. The way in which the
+	 * scope is converted may depend on the implementation settings.
+	 * </p>
+	 * @param scopes the authorities to test (i.e. "write", "read")
+	 * @return true if any of the authorities is found, else false
+	 */
+	boolean hasAnyScope(String... scopes);
+
+	/**
 	 * Always grants access.
 	 * @return true
 	 */

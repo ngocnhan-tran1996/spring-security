@@ -46,6 +46,8 @@ public abstract class SecurityExpressionRoot<T extends @Nullable Object> impleme
 
 	private String defaultRolePrefix = "ROLE_";
 
+	private String defaultScopePrefix = "SCOPE_";
+
 	private final T object;
 
 	private AuthorizationManagerFactory<T> authorizationManagerFactory = new DefaultAuthorizationManagerFactory<>();
@@ -166,6 +168,24 @@ public abstract class SecurityExpressionRoot<T extends @Nullable Object> impleme
 	}
 
 	@Override
+	public final boolean hasScope(String scope) {
+		assertScope(scope);
+		return isGranted(this.authorizationManagerFactory.hasAuthority(this.defaultScopePrefix + scope));
+	}
+
+	@Override
+	public final boolean hasAnyScope(String... scopes) {
+		Assert.notNull(scopes, "scopes cannot be null");
+		if (this.authorizationManagerFactory instanceof DefaultAuthorizationManagerFactory<T>) {
+			for (int i = 0; i < scopes.length; i++) {
+				assertScope(scopes[i]);
+				scopes[i] = this.defaultScopePrefix + scopes[i];
+			}
+		}
+		return isGranted(this.authorizationManagerFactory.hasAnyAuthority(scopes));
+	}
+
+	@Override
 	public final Authentication getAuthentication() {
 		return this.authentication.get();
 	}
@@ -208,7 +228,8 @@ public abstract class SecurityExpressionRoot<T extends @Nullable Object> impleme
 	/**
 	 * Convenience method to access {@link Authentication#getPrincipal()} from
 	 * {@link #getAuthentication()}
-	 * @return
+	 * @return the {@code Principal} being authenticated or the authenticated principal
+	 * after authentication.
 	 */
 	public @Nullable Object getPrincipal() {
 		return getAuthentication().getPrincipal();
@@ -302,6 +323,13 @@ public abstract class SecurityExpressionRoot<T extends @Nullable Object> impleme
 	public void setPermissionEvaluator(PermissionEvaluator permissionEvaluator) {
 		Assert.notNull(permissionEvaluator, "permissionEvaluator cannot be null");
 		this.permissionEvaluator = permissionEvaluator;
+	}
+
+	private void assertScope(String scope) {
+		Assert.notNull(scope, "scope cannot be null");
+		Assert.isTrue(!scope.startsWith(this.defaultScopePrefix), () -> scope + " should not start with '"
+				+ this.defaultScopePrefix + "' since '" + this.defaultScopePrefix
+				+ "' is automatically prepended when using hasScope and hasAnyScope. Consider using AuthorityAuthorizationManager#hasAuthority or #hasAnyAuthority instead.");
 	}
 
 }

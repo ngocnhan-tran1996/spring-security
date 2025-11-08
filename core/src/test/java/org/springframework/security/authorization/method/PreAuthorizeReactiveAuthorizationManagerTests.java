@@ -91,6 +91,42 @@ public class PreAuthorizeReactiveAuthorizationManagerTests {
 	}
 
 	@Test
+	public void checkSecuredScope() throws Exception {
+		MockMethodInvocation methodInvocation = new MockMethodInvocation(
+				new PreAuthorizeAuthorizationManagerTests.TestClass(),
+				PreAuthorizeAuthorizationManagerTests.TestClass.class, "securedScope");
+		PreAuthorizeReactiveAuthorizationManager manager = new PreAuthorizeReactiveAuthorizationManager();
+		Mono<Authentication> authentication = Mono
+			.just(new TestingAuthenticationToken("user", "password", "SCOPE_read"));
+		AuthorizationResult decision = manager.authorize(authentication, methodInvocation).block();
+		assertThat(decision).isNotNull();
+		assertThat(decision.isGranted()).isFalse();
+
+		authentication = Mono.just(new TestingAuthenticationToken("user", "password", "SCOPE_write"));
+		decision = manager.authorize(authentication, methodInvocation).block();
+		assertThat(decision).isNotNull();
+		assertThat(decision.isGranted()).isTrue();
+	}
+
+	@Test
+	public void checkSecuredAnyScope() throws Exception {
+		MockMethodInvocation methodInvocation = new MockMethodInvocation(
+				new PreAuthorizeAuthorizationManagerTests.TestClass(),
+				PreAuthorizeAuthorizationManagerTests.TestClass.class, "securedAnyScope");
+		PreAuthorizeReactiveAuthorizationManager manager = new PreAuthorizeReactiveAuthorizationManager();
+		Mono<Authentication> authentication = Mono
+			.just(new TestingAuthenticationToken("user", "password", "SCOPE_read"));
+		AuthorizationResult decision = manager.authorize(authentication, methodInvocation).block();
+		assertThat(decision).isNotNull();
+		assertThat(decision.isGranted()).isTrue();
+
+		authentication = Mono.just(new TestingAuthenticationToken("user", "password", "SCOPE_write"));
+		decision = manager.authorize(authentication, methodInvocation).block();
+		assertThat(decision).isNotNull();
+		assertThat(decision.isGranted()).isTrue();
+	}
+
+	@Test
 	public void checkRequiresAdminWhenClassAnnotationsThenMethodAnnotationsTakePrecedence() throws Exception {
 		Mono<Authentication> authentication = Mono
 			.just(new TestingAuthenticationToken("user", "password", "ROLE_USER"));
@@ -146,6 +182,16 @@ public class PreAuthorizeReactiveAuthorizationManagerTests {
 
 		@Override
 		public void inheritedAnnotations() {
+
+		}
+
+		@PreAuthorize("hasScope('write')")
+		public void securedScope() {
+
+		}
+
+		@PreAuthorize("hasAnyScope('write', 'read')")
+		public void securedAnyScope() {
 
 		}
 
