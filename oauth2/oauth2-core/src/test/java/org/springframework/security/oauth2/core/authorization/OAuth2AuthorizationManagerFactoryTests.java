@@ -33,51 +33,75 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 public class OAuth2AuthorizationManagerFactoryTests {
 
+	private static final String MSG_READ = "message:read";
+
+	private static final String MSG_WRITE = "message:write";
+
+	private static final String SCOPE_MSG_READ = "SCOPE_message:read";
+
+	private static final String SCOPE_MSG_WRITE = "SCOPE_message:write";
+
 	@Test
 	public void hasScopeReturnsAuthorityAuthorizationManagerByDefault() {
 		OAuth2AuthorizationManagerFactory<String> factory = new DefaultOAuth2AuthorizationManagerFactory<>();
-		AuthorizationManager<String> authorizationManager = factory.hasScope("message:read");
+		AuthorizationManager<String> authorizationManager = factory.hasScope(MSG_READ);
 		assertThat(authorizationManager).isInstanceOf(AuthorityAuthorizationManager.class);
 	}
 
 	@Test
 	public void hasAnyScopeReturnsAuthorityAuthorizationManagerByDefault() {
 		OAuth2AuthorizationManagerFactory<String> factory = new DefaultOAuth2AuthorizationManagerFactory<>();
-		AuthorizationManager<String> authorizationManager = factory.hasAnyScope("message:read", "message:write");
+		AuthorizationManager<String> authorizationManager = factory.hasAnyScope(MSG_READ, MSG_WRITE);
+		assertThat(authorizationManager).isInstanceOf(AuthorityAuthorizationManager.class);
+	}
+
+	@Test
+	public void hasAllScopesReturnsAuthorityAuthorizationManagerByDefault() {
+		OAuth2AuthorizationManagerFactory<String> factory = new DefaultOAuth2AuthorizationManagerFactory<>();
+		AuthorizationManager<String> authorizationManager = factory.hasAnyScope(MSG_READ, MSG_WRITE);
 		assertThat(authorizationManager).isInstanceOf(AuthorityAuthorizationManager.class);
 	}
 
 	@Test
 	public void hasScopeWhenSetAuthorizationManagerFactories() {
 		DefaultOAuth2AuthorizationManagerFactory<String> factory = new DefaultOAuth2AuthorizationManagerFactory<>(
-				AuthorizationManagerFactories.<String>multiFactor().requireFactors("SCOPE_message:read").build());
-		assertUserGranted(factory.hasScope("message:read"));
-		assertUserDenied(factory.hasScope("message:write"));
+				AuthorizationManagerFactories.<String>multiFactor().requireFactors(SCOPE_MSG_READ).build());
+		assertUserGranted(factory.hasScope(MSG_READ), SCOPE_MSG_READ);
+		assertUserDenied(factory.hasScope(MSG_WRITE), SCOPE_MSG_READ);
 	}
 
 	@Test
 	public void hasAnyScopeWhenSetAuthorizationManagerFactories() {
 		DefaultOAuth2AuthorizationManagerFactory<String> factory = new DefaultOAuth2AuthorizationManagerFactory<>(
-				AuthorizationManagerFactories.<String>multiFactor().requireFactors("SCOPE_message:read").build());
-		assertUserGranted(factory.hasAnyScope("message:read"));
-		assertUserDenied(factory.hasAnyScope("message:write"));
+				AuthorizationManagerFactories.<String>multiFactor().requireFactors(SCOPE_MSG_READ).build());
+		assertUserGranted(factory.hasAnyScope(MSG_READ), SCOPE_MSG_READ);
+		assertUserDenied(factory.hasAnyScope(MSG_WRITE), SCOPE_MSG_READ);
 	}
 
-	private void assertUserGranted(AuthorizationManager<String> manager) {
-		AuthorizationResult authorizationResult = createAuthorizationResult(manager);
+	@Test
+	public void hasAllScopesWhenSetAuthorizationManagerFactories() {
+		DefaultOAuth2AuthorizationManagerFactory<String> factory = new DefaultOAuth2AuthorizationManagerFactory<>(
+				AuthorizationManagerFactories.<String>multiFactor()
+					.requireFactors(SCOPE_MSG_READ, SCOPE_MSG_WRITE)
+					.build());
+		assertUserGranted(factory.hasAllScopes(MSG_READ, MSG_WRITE), SCOPE_MSG_READ, SCOPE_MSG_WRITE);
+		assertUserDenied(factory.hasAllScopes(MSG_READ, MSG_WRITE), SCOPE_MSG_READ);
+	}
+
+	private void assertUserGranted(AuthorizationManager<String> manager, String... authorities) {
+		AuthorizationResult authorizationResult = createAuthorizationResult(manager, authorities);
 		assertThat(authorizationResult).isNotNull();
 		assertThat(authorizationResult.isGranted()).isTrue();
 	}
 
-	private void assertUserDenied(AuthorizationManager<String> manager) {
-		AuthorizationResult authorizationResult = createAuthorizationResult(manager);
+	private void assertUserDenied(AuthorizationManager<String> manager, String... authorities) {
+		AuthorizationResult authorizationResult = createAuthorizationResult(manager, authorities);
 		assertThat(authorizationResult).isNotNull();
 		assertThat(authorizationResult.isGranted()).isFalse();
 	}
 
-	private AuthorizationResult createAuthorizationResult(AuthorizationManager<String> manager) {
-		TestingAuthenticationToken authenticatedUser = new TestingAuthenticationToken("user", "pass",
-				"SCOPE_message:read");
+	private AuthorizationResult createAuthorizationResult(AuthorizationManager<String> manager, String... authorities) {
+		TestingAuthenticationToken authenticatedUser = new TestingAuthenticationToken("user", "pass", authorities);
 		return manager.authorize(() -> authenticatedUser, "");
 	}
 

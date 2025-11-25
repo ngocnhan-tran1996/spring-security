@@ -24,7 +24,7 @@ import org.springframework.security.core.Authentication;
  *
  * @param <T> the type of object that the authorization check is being done on
  * @author Ngoc Nhan
- * @since 7.0
+ * @since 7.1
  */
 public interface OAuth2AuthorizationManagerFactory<T> {
 
@@ -68,6 +68,28 @@ public interface OAuth2AuthorizationManagerFactory<T> {
 	 */
 	default AuthorizationManager<T> hasAnyScope(String... scopes) {
 		return OAuth2AuthorizationManagers.hasAnyScope(scopes);
+	}
+
+	/**
+	 * Create an {@link AuthorizationManager} that requires an {@link Authentication} to
+	 * have all authorities {@code SCOPE_scope1}, {@code SCOPE_scope2}, ...
+	 * {@code SCOPE_scopeN}.
+	 *
+	 * <p>
+	 * For example, if you call {@code hasAllScopes("read", "write")}, then each
+	 * {@link org.springframework.security.core.Authentication} must have all
+	 * {@link org.springframework.security.core.GrantedAuthority} values of
+	 * {@code SCOPE_read} and {@code SCOPE_write}.
+	 *
+	 * <p>
+	 * This would be equivalent to calling
+	 * {@code AllAuthoritiesAuthorizationManager#hasAllAuthorities("SCOPE_read", "SCOPE_write")}.
+	 * @param scopes the scope values to require
+	 * @return an {@link AuthorizationManager} that requires all authorities
+	 * {@code SCOPE_scope1}, {@code SCOPE_scope2}, ... {@code SCOPE_scopeN}.
+	 */
+	default AuthorizationManager<T> hasAllScopes(String... scopes) {
+		return OAuth2AuthorizationManagers.hasAllScopes(scopes);
 	}
 
 }

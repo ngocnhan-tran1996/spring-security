@@ -26,7 +26,7 @@ import org.springframework.util.Assert;
  *
  * @param <T> the type of object that the authorization check is being done on
  * @author Ngoc Nhan
- * @since 7.0
+ * @since 7.1
  */
 public final class DefaultOAuth2AuthorizationManagerFactory<T> implements OAuth2AuthorizationManagerFactory<T> {
 
@@ -56,24 +56,34 @@ public final class DefaultOAuth2AuthorizationManagerFactory<T> implements OAuth2
 	@Override
 	public AuthorizationManager<T> hasScope(String scope) {
 		Assert.notNull(scope, "scope can not be null");
-		return hasAnyScope(scope);
+		assertScope(scope);
+		return this.authorizationManagerFactory.hasAuthority(this.scopePrefix + scope);
 	}
 
 	@Override
 	public AuthorizationManager<T> hasAnyScope(String... scopes) {
+		return this.authorizationManagerFactory.hasAnyAuthority(this.mappedScopes(scopes));
+	}
+
+	@Override
+	public AuthorizationManager<T> hasAllScopes(String... scopes) {
+		return this.authorizationManagerFactory.hasAllAuthorities(this.mappedScopes(scopes));
+	}
+
+	private String[] mappedScopes(String... scopes) {
 		Assert.notNull(scopes, "scopes can not be null");
 		String[] mappedScopes = new String[scopes.length];
 		for (int i = 0; i < scopes.length; i++) {
 			assertScope(scopes[i]);
 			mappedScopes[i] = this.scopePrefix + scopes[i];
 		}
-		return this.authorizationManagerFactory.hasAnyAuthority(mappedScopes);
+		return mappedScopes;
 	}
 
 	private void assertScope(String scope) {
 		Assert.isTrue(!scope.startsWith(this.scopePrefix), () -> scope + " should not start with '" + this.scopePrefix
 				+ "' since '" + this.scopePrefix
-				+ "' is automatically prepended when using hasScope and hasAnyScope. Consider using AuthorityAuthorizationManager#hasAuthority or #hasAnyAuthority instead.");
+				+ "' is automatically prepended when using hasScope and hasAnyScope. Consider using AuthorizationManagerFactory#hasAuthority or #hasAnyAuthority instead.");
 	}
 
 }
