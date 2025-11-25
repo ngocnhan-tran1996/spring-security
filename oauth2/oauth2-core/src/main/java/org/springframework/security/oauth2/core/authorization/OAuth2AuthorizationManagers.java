@@ -29,6 +29,7 @@ import org.springframework.util.Assert;
  * @author Josh Cummings
  * @since 6.2
  * @see AuthorityAuthorizationManager
+ * @see AllAuthoritiesAuthorizationManager
  */
 public final class OAuth2AuthorizationManagers {
 
